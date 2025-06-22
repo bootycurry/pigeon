@@ -8,6 +8,7 @@ base64 = "0.22.1"
 clap = { version = "4.5.39", features = ["derive"] }
 imap = "2.4.1"
 imap-proto = "0.16.5"
+keyring = "3.6.2"
 native-tls = "0.2.14"
 oauth2 = "5.0.0"
 reqwest = "0.12.20"

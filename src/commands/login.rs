@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::{collections::HashMap, fs};
 
+use keyring::Entry;
 use reqwest::{Client, Url};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -17,7 +18,19 @@ struct ClientSecret {
     redirect_uris: Vec<String>,
 }
 
+#[derive(Serialize, Deserialize)]
+struct Token {
+    access_token: String,
+    expires_in: u64,
+    refresh_token: String,
+    scope: String,
+    token_type: String,
+    refesh_token_expires_in: u64,
+}
+
 async fn get_tokens(client_secret: &ClientSecret, auth_code: &str) {
+    // Send a POST request to exchange the authorization code for tokens
+    
     let http_client = Client::new();
 
     let mut req_body = HashMap::new();
@@ -38,14 +51,26 @@ async fn get_tokens(client_secret: &ClientSecret, auth_code: &str) {
                 let tokens = response.text().await;
                 match tokens {
                     Ok(tokens) => {
-                        println!("Tokens received: {}", tokens);
+                        println!("Response: {}", tokens);
+                        let token: Token = serde_json::from_str(&tokens).unwrap();
+                        println!("Access Token: {}", token.access_token);
+                        println!("Refresh Token: {}", token.refresh_token);
+
+                        // Store tokens using keyring
+                        let access_entry = Entry::new("pigeon", "access_token").unwrap();
+                        access_entry.set_password(&token.access_token).unwrap();
+
+                        let refresh_entry = Entry::new("pigeon", "refresh_token").unwrap();
+                        refresh_entry.set_password(&token.refresh_token).unwrap();
+
+                        println!("Tokens stored successfully.");
                     }
                     Err(e) => eprintln!("Failed to read response text: {}", e),
                 }
             } else {
                 eprintln!("Failed to get tokens: {}", response.status());
             }
-        },
+        }
         Err(e) => {
             eprintln!("Failed to send request: {}", e);
         }
@@ -56,6 +81,8 @@ pub async fn login() {
     let client_secret: ClientSecret =
         serde_json::from_str(&fs::read_to_string(Path::new("client_secret.json")).unwrap())
             .unwrap();
+
+    // Construct the authorization URL
 
     let mut auth_url = Url::parse(&client_secret.auth_uri).expect("Invalid auth URI");
     auth_url.query_pairs_mut()
@@ -69,6 +96,10 @@ pub async fn login() {
     println!("Please open the following URL in your browser to log in:");
     println!("{}", auth_url);
 
+    // Start a local HTTP server to handle the OAuth callback
+
+    println!("Starting OAuth callback server at localhost:8080");
+
     let server = match Server::http("localhost:8080") {
         Ok(server) => server,
         Err(e) => {
@@ -76,8 +107,6 @@ pub async fn login() {
             return;
         }
     };
-
-    println!("OAuth callback server localhost:8080");
 
     for req in server.incoming_requests() {
         let url = match Url::parse(&format!("http://dumy/{}", String::from(req.url()))) {
@@ -119,5 +148,7 @@ pub async fn login() {
             println!("Authorization code received");
             get_tokens(&client_secret, &code).await;
         }
+
+        break;
     }
 }
