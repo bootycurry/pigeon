@@ -1,3 +1,5 @@
+mod commands;
+
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -11,16 +13,16 @@ struct CLI {
 #[derive(Subcommand)]
 enum Commands {
     /// login to a gmail account
-    login {
-        #[arg(short, long)]
-        email: String,
-        #[arg(short, long)]
-        password: String,
-    },
+    login,
 }
 
-
-fn main() {
-    let _cli = CLI::parse();
-    
+#[tokio::main]
+async fn main() {
+    let cli = CLI::parse();
+    match cli.command {
+        Some(Commands::login) => {
+            commands::login::login().await;
+        },
+        _ => {}
+    }
 }
