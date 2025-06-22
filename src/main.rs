@@ -1,20 +1,8 @@
 mod commands;
 
-use clap::{Parser, Subcommand};
+use commands::{CLI, Commands};
+use clap::Parser;
 
-#[derive(Parser)]
-#[command(version="1.0.0", about="A Terminal Gmail Client.", long_about = None)]
-struct CLI {
-    #[command(subcommand)] 
-    command: Option<Commands>,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Subcommand)]
-enum Commands {
-    /// login to a gmail account
-    login,
-}
 
 #[tokio::main]
 async fn main() {
