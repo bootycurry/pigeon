@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use tiny_http::{Response, Server};
 
+use crate::utils::config::{UserConfig, get_config_file_path, create_config_file, load_user_config, ConfigError};
+
 #[derive(Serialize, Deserialize)]
 struct ClientSecret {
     client_id: String,
@@ -18,6 +20,7 @@ struct ClientSecret {
     redirect_uris: Vec<String>,
 }
 
+
 #[derive(Serialize, Deserialize)]
 struct Token {
     access_token: String,
@@ -25,7 +28,7 @@ struct Token {
     refresh_token: String,
     scope: String,
     token_type: String,
-    refesh_token_expires_in: u64,
+    refresh_token_expires_in: u64,
 }
 
 async fn get_tokens(client_secret: &ClientSecret, auth_code: &str) {
@@ -55,6 +58,59 @@ async fn get_tokens(client_secret: &ClientSecret, auth_code: &str) {
                         let token: Token = serde_json::from_str(&tokens).unwrap();
                         println!("Access Token: {}", token.access_token);
                         println!("Refresh Token: {}", token.refresh_token);
+
+                        // Store user info in a config file
+                        let user_info_response = http_client
+                            .get("https://www.googleapis.com/oauth2/v1/userinfo")
+                            .bearer_auth(&token.access_token)
+                            .send()
+                            .await;
+                        match user_info_response {
+                            Ok(user_info_response) => {
+                                if user_info_response.status().is_success() {
+                                    let user_info_text = user_info_response.text().await.unwrap();
+                                    let user_info: UserConfig = serde_json::from_str(&user_info_text).unwrap();
+
+                                    // Create or update the user config file
+                                    if let Some(config_path) = get_config_file_path() {
+                                        if !config_path.exists() {
+                                            create_config_file();
+                                        }
+                                        let mut user_config = match load_user_config() {
+                                            Ok(config) => config,
+                                            Err(ConfigError::NoConfigDirectory) => {
+                                                eprintln!("No config directory found, creating one.");
+                                                create_config_file();
+                                                UserConfig { email: String::new() }
+                                            }
+                                            Err(ConfigError::ConfigFileNotFound(path)) => {
+                                                eprintln!("Config file not found at: {}", path.display());
+                                                UserConfig { email: String::new() }
+                                            }
+                                            Err(ConfigError::ConfigFileReadError(e)) => {
+                                                eprintln!("Failed to read config file: {}", e);
+                                                UserConfig { email: String::new() }
+                                            }
+                                            _ => {
+                                                eprintln!("An unexpected error occurred while loading user config.");
+                                                UserConfig { email: String::new() }
+                                            }
+                                        };
+                                        user_config.email = user_info.email;
+                                        fs::write(config_path, toml::to_string(&user_config).unwrap())
+                                            .expect("Failed to write user config file");
+                                        println!("User config updated successfully.");
+                                    } else {
+                                        eprintln!("Could not find config file path.");
+                                    }
+
+                                    
+                                } else {
+                                    eprintln!("Failed to get user info: {}", user_info_response.status());
+                                }
+                            }
+                            Err(e) => eprintln!("Failed to send user info request: {}", e),
+                        }
 
                         // Store tokens using keyring
                         let access_entry = Entry::new("pigeon", "access_token").unwrap();
