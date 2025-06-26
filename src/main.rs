@@ -13,6 +13,9 @@ async fn main() {
         Some(Commands::login) => {
             commands::login::login().await;
         },
+        Some(Commands::inbox) => {
+            commands::inbox::get_inbox();
+        },
         _ => {}
     }
 }

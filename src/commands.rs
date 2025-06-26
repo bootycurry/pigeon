@@ -1,4 +1,5 @@
 pub mod login;
+pub mod inbox;
 
 
 use clap::{Parser, Subcommand};

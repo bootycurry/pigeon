@@ -145,7 +145,7 @@ pub async fn login() {
         .append_pair("client_id", &client_secret.client_id)
         .append_pair("redirect_uri", &client_secret.redirect_uris[0])
         .append_pair("response_type", "code")
-        .append_pair("scope", "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.readonly")
+        .append_pair("scope", "https://mail.google.com/")
         .append_pair("access_type", "offline")
         .append_pair("prompt", "consent");
 
