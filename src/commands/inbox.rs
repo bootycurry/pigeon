@@ -29,6 +29,7 @@ pub fn get_inbox() {
         }
     };
 
+    // Connect to the IMAP server using TLS
     let client = match imap::connect(("imap.gmail.com", 993), "imap.gmail.com", &tls) {
         Ok(client) => client,
         Err(e) => {
@@ -64,13 +65,15 @@ pub fn get_inbox() {
         access_token,
     };
 
-    let mut imap_session = match client.authenticate("XOAUTH2",&gmail_oauth2) {
+    // Authenticate with the IMAP server using OAuth2
+    let mut imap_session = match client.authenticate("XOAUTH2", &gmail_oauth2) {
         Ok(session) => session,
         Err(e) => {
             eprintln!("Failed to authenticate with IMAP server: {:?}", e);
             return;
         }
     };
+
     let inbox = match imap_session.select("INBOX") {
         Ok(inbox) => inbox,
         Err(e) => {
@@ -90,21 +93,22 @@ pub fn get_inbox() {
     };
 
     for message in messages.iter() {
-    if let Some(envelope) = message.envelope() {
-        let from = envelope.from
-            .as_ref()
-            .and_then(|addrs| addrs.first())
-            .and_then(|addr| addr.mailbox.as_ref())
-            .and_then(|mailbox| std::str::from_utf8(mailbox).ok())
-            .unwrap_or("Unknown");
+        if let Some(envelope) = message.envelope() {
+            let from = envelope
+                .from
+                .as_ref()
+                .and_then(|addrs| addrs.first())
+                .and_then(|addr| addr.mailbox.as_ref())
+                .and_then(|mailbox| std::str::from_utf8(mailbox).ok())
+                .unwrap_or("Unknown");
 
-        let subject = envelope.subject
-            .as_ref()
-            .and_then(|s| std::str::from_utf8(s).ok())
-            .unwrap_or("No Subject");
+            let subject = envelope
+                .subject
+                .as_ref()
+                .and_then(|s| std::str::from_utf8(s).ok())
+                .unwrap_or("No Subject");
 
-
-        println!("From: {}, Subject: {}", from, subject);
+            println!("From: {}, Subject: {}", from, subject);
+        }
     }
-}
 }
